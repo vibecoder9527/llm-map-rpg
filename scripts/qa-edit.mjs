@@ -1,0 +1,33 @@
+import { chromium } from "playwright";
+import fs from "node:fs";
+const dir = "/workspace/screenshots";
+fs.mkdirSync(dir, { recursive: true });
+const browser = await chromium.launch({ args: ["--no-sandbox"] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+page.on("pageerror", (e) => console.log("PAGEERROR", e.message));
+await page.goto("http://127.0.0.1:8080/new?sample=true", { waitUntil: "networkidle" });
+await page.getByRole("button", { name: "踏進北風亭" }).click();
+await page.waitForURL("**/play");
+await page.waitForTimeout(500);
+await page.getByRole("button", { name: "編輯模式" }).click();
+await page.waitForTimeout(300);
+console.log("edit on", await page.getByText("新增物件").isVisible());
+await page.screenshot({ path: `${dir}/edit-mode.png` });
+const bar = page.locator("img[alt='北風亭·一樓']");
+const box = await bar.boundingBox();
+if (box) {
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.16);
+  await page.waitForTimeout(400);
+}
+console.log("inspector", (await page.getByText("物件框").count()) + (await page.getByText("人物設定").count()));
+const inspectorText = await page.locator(".rounded-lg.border.bg-card, .bg-card").last().innerText().catch(() => "");
+console.log("panel", inspectorText.slice(0, 200).replace(/\n/g, " | "));
+await page.screenshot({ path: `${dir}/edit-object.png` });
+await page.getByRole("button", { name: "阿青" }).first().click();
+await page.waitForTimeout(300);
+console.log("npc form", await page.getByText("人物設定").count());
+await page.screenshot({ path: `${dir}/edit-npc.png` });
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${dir}/edit-mobile.png` });
+await browser.close();

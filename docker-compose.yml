@@ -1,0 +1,27 @@
+services:
+  tuzhi:
+    build:
+      context: .
+      target: production
+    image: tuzhi:latest
+    ports:
+      - "8080:8080"
+    environment:
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      HOST: 0.0.0.0
+      PORT: "8080"
+    restart: unless-stopped
+
+  tuzhi-dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      target: development
+    ports:
+      - "8080:8080"
+    environment:
+      XAI_API_KEY: ${XAI_API_KEY:-}
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./server:/app/server

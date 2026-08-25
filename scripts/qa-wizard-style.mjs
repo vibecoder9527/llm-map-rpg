@@ -1,0 +1,15 @@
+import { chromium } from "playwright";
+import fs from "node:fs";
+const dir = "/workspace/screenshots";
+fs.mkdirSync(dir, { recursive: true });
+const browser = await chromium.launch({ args: ["--no-sandbox"] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+await page.goto("http://127.0.0.1:8080/new", { waitUntil: "networkidle" });
+await page.waitForTimeout(400);
+console.log("h1", await page.locator("h1").innerText());
+console.log("has style", await page.getByText("圖片生成風格").count());
+await page.screenshot({ path: `${dir}/wizard-style.png`, fullPage: true });
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(200);
+await page.screenshot({ path: `${dir}/wizard-style-mobile.png`, fullPage: true });
+await browser.close();

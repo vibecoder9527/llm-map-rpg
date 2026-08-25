@@ -1,0 +1,37 @@
+# deps & secrets
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Grok / local workspace
+.project_id
+.github_repo
+.grok/
+AGENTS.project.md
+
+# build & cache
+dist/
+.output/
+.vercel/
+.nitro/
+.tanstack/
+.vinxi/
+*.tsbuildinfo
+
+# generated / chat dumps (not the game)
+artifacts/
+attachments/
+screenshots/
+coverage/
+playwright-report/
+test-results/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
