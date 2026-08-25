@@ -134,7 +134,9 @@ known：若玩家在設定上已經知道該人，填true，不知道填false。
 bio(背景)不用詳細的寫出生到現在，但要寫出身與家庭、成長經歷、關鍵人生事件、天賦相關(如果世界觀有)。40–120字。
 appearance（外觀）不含衣服，必須完整寫到：髮型髮色、眉、眼、鼻、口、膚色、體型、肩背、手臂、手、腿、足；有疤、殘缺或體態習慣也要寫。40–120字。
 若此人是女性且非老年，外觀還必須直白具體寫胸部（乳暈乳頭、形狀、量感、起伏）、腹部（線條、軟實、腰腹交接）、臀部（寬窄、圓弧、與腰腿的比例、陰部）；不要用「身材很好」帶過。年齡 ≥60 的女性與男性不強制這三項。
-clothing（衣著）必須從頭到腳：頭上有無帽、上衣、下身、鞋、外套、腰帶、飾品與看得見的隨身物。禁止只寫一件單品。40–90字。玩家與每個 NPC 都要填外觀、衣著、age（整歲，須與外觀的老幼相符）、gender（性別，如男／女／其他）、race（種族，如人類、精靈；此世界若無非人種族則填「人類」）。NPC 的 tags 填教團、職業、神祇、組織專名，用來對上 lorebook。personality 寫說話習慣、脾氣、底線，20–40字。`
+clothing（衣著）必須從頭到腳：頭上有無帽、上衣、下身、鞋、外套、腰帶、飾品與看得見的隨身物。禁止只寫一件單品。40–90字。
+玩家與每個 NPC 都要填外觀、衣著、age（整歲，須與外觀的老幼相符）、gender（性別，如男／女／其他）、race（種族，如人類、精靈；此世界若無非人種族則填「人類」）。NPC 的 tags 填教團、職業、神祇、組織專名，用來對上 lorebook。personality 寫說話習慣、脾氣、底線，20–40字。`;
+}
 
 export function annotatePrompt(): string {
   return `這是一張由正上方俯視的室內／場所地圖，沒有人物。請辨識所有可見的家具、出口、地標、容器。
@@ -421,6 +423,5 @@ export function translateImageFieldsPrompt(
 Keep every visual fact (color, material, body, clothes, furniture, writing, tattoos). Do not add new objects or people.
 If a field is already English, copy it.
 Output ONLY these labeled lines, nothing else — no thinking, no notes, no markdown:
-
 ${body}`;
 }
