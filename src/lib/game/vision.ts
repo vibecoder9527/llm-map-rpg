@@ -7,7 +7,7 @@ export const VISION = {
   /** Matches RANGE.near */
   seen: 24,
   /** Matches RANGE.sameArea */
-  glimpse: 52,
+  glimpse: 36,
 } as const;
 
 export const SIGHT_LABEL: Record<SightLevel, string> = {
@@ -18,7 +18,7 @@ export const SIGHT_LABEL: Record<SightLevel, string> = {
 
 export const ALERT_LABEL: Record<AlertState, string> = {
   unaware: "未察覺",
-  suspicious: "起疑",
+  suspicious: "注意",
   alert: "鎖定",
 };
 

@@ -24,10 +24,10 @@ export function pctDist(a: Vec2, b: Vec2): number {
 }
 
 export const RANGE = {
-  adjacent: 12,
-  near: 24,
-  sameArea: 52,
-  distant: 72,
+  adjacent: 6,
+  near: 12,
+  sameArea: 36,
+  distant: 48,
 } as const;
 
 /** Game distance: long side of the map = 100 units. */
@@ -211,7 +211,7 @@ export function formatDistanceReport(
     }
   }
   lines.push(
-    "規則：≤12 可碰觸／低語；≤24 可正常交談；≤52 同區須揚聲且細節不清；>52 聽不見對話。單位為校正後的地圖單位。NPC 視野為正前方約 90° 扇形，無牆體遮擋；近處扇內看清、同區扇內餘光、扇外為死角。",
+    "規則：≤6 可碰觸／低語；≤12 可正常交談；≤36 同區須揚聲且細節不清；>36 聽不見對話。單位為校正後的地圖單位。NPC 視野為正前方約 90° 扇形，無牆體遮擋；近處扇內看清、同區扇內餘光、扇外為死角。",
   );
   return lines.join("\n");
 }
