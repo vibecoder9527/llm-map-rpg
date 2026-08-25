@@ -40,8 +40,8 @@ docker compose up --build
 或：
 
 ```bash
-docker build -t tuzhi .
-docker run --rm -p 8080:8080 -e XAI_API_KEY=xai-你的金鑰 tuzhi
+docker build -t llm-map-rpg .
+docker run --rm -p 8080:8080 -e XAI_API_KEY=xai-你的金鑰 llm-map-rpg
 ```
 
 開發用（原始碼掛進容器、熱重載）：
@@ -70,8 +70,8 @@ docker compose --profile dev up --build
 | --- | --- |
 | ≤ 12 | 伸手可及：低語、碰觸 |
 | ≤ 24 | 近處可談 |
-| ≤ 52 | 同區須揚聲，細節不清 |
-| > 52 | 聽不見；遠處只見人影 |
+| ≤ 36 | 同區須揚聲，細節不清 |
+| > 36 | 聽不見；遠處只見人影 |
 
 遠在地圖另一端的人，不能當成面對面聊天。
 
