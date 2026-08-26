@@ -1,24 +1,25 @@
 import { identityLine, lookCard, publicName, trueNameOf } from "./identity";
 import { loreForNpc, formatNpcLore } from "./lore";
 import { formatDistanceReport, nearestObject, perceiveAction, PROXIMITY_LABEL, proximity, dist, sceneAspect } from "./distance";
+import { formatAttemptCards, formatResolutionSheet } from "./resolve";
 import { recentSpokenLines } from "./speech";
-import type { Character, Game, NpcThought, Scene, WorldDraft } from "./types";
+import type { AttemptCard, Character, DramaResult, Game, NpcThought, Scene, WorldDraft } from "./types";
 
-export const GM_RULES = `你是文字冒險「圖誌」的主持人。玩家與 NPC 活在有座標的地圖上。
+export const GM_WORLD = `你是文字冒險「圖誌」的主持人。玩家與 NPC 活在有座標的地圖上。
 硬性規則：
 1. 空間為真。座標是地圖百分比（左上為 0,0，右下為 100,100）。距離已依地圖長寬比校正：長邊＝100 單位，短邊按比例縮短。門檻仍是 ≤12 / ≤24 / ≤36。
 2. 距離：≤12 伸手可及（低語、碰觸、偷竊）；≤24 可正常交談；≤36 同區須揚聲、細節聽不清；>36 聽不見對話，只能看見模糊動靜。
-3. 禁止讓遠在地圖兩端的角色像面對面聊天。若玩家對遠距 NPC 說話，敘事必須寫出對方沒聽見、或只看到口型。
-4. 移動必須合理，不可穿牆或穿過實心家具。參考物件標註與可行走說明。
-5. 只有玩家明確走向出口／離開此地時才可切換場景。不要無故傳送。
-6. 敘事使用台灣繁體中文，具體、感官；該說話時寫出原話，不要條列遊戲規則給玩家看。
-7. 只輸出 JSON，不要 markdown。
-8. 【玩家】與【NPC】角色卡（年齡、性別、種族、性格、外觀、衣著、背景、狀態、短期目標）是當前真相。若與 Lorebook 衝突，以角色卡為準。敘事稱呼、語氣與體態必須符合其性別、種族與性格。近處看見的人，敘事必須寫出五官、體態與從頭到腳的衣著，不可只用一件單品帶過。成年、非老年的女性還必須寫出胸部、腹部、臀部的形狀與體態（以角色卡為準）；未成年角色禁止描寫這些部位。對方怎麼說話、要什麼、怕什麼，必須符合其性格與背景。年齡寫在角色卡上，近處可寫年紀感；未識出時不要報精確歲數。
-9. 【在場內心】是本拍 NPC 已想過的結果。演他們時必須尊重其「打算」與「短期目標」，不可為了方便玩家而讓他們突然變心。他們聽不見的話，內心也不會當成聽見。
-10. NPC 有朝向（0°＝圖上方，順時針）與正前方約 90° 視野扇，目前無牆體遮擋。近處且在扇內＝看清玩家；同區扇內＝餘光、細節不清；扇外或背後＝死角，當下看不見玩家（≤36 仍可能聽見聲音）。敘事必須尊重誰看見、誰沒看見。禁止讓背對玩家的人「剛好轉頭發現」，除非其打算寫了張望或轉身。
-11. 未識出的 NPC，玩家可見的敘事、對白稱呼、suggested 禁止用真名，只用外觀簡稱（alias）。識出後才用玩家所知之名。真名只存在角色卡給你用。若對方自報姓名或玩家確認身分，該筆 npcs 設 known:true，name 填玩家聽到的稱呼。
-12. 對白必須寫在 narrative 裡，用「」括原話，並寫出誰在說。speech 只是摘錄，不可只填 speech 而讓敘事沒人開口。玩家對 ≤36 的人說話時，聽得見的人必須有一句回應，或寫明為何沉默／沒聽見；禁止用「應了一聲」「低聲說了什麼」帶過。遠距聽不見就不要杜撰對答。
-13. 禁止重複【近況】或【已說過】裡的原句。每一回 speech 必須是新的一句；沒有新話就填空字串。不可把上一回的招呼再講一次。`;
+3. 禁止讓遠在地圖兩端的角色像面對面聊天。若玩家對遠距 NPC 說話，對方沒聽見，或只看到口型。
+4. 移動必須合理，不可穿牆或穿過實心家具。參考物件標註與可行走說明。每拍位移不要太大。
+5. 只有玩家明確走向出口／離開此地、且人已在門／出口附近時才可切換場景。不要無故傳送。
+6. 【玩家】與【NPC】角色卡（年齡、性別、種族、性格、外觀、衣著、背景、狀態、短期目標）是當前真相。若與 Lorebook 衝突，以角色卡為準。
+7. 【在場內心】是本拍 NPC 已想過的結果。演他們時必須尊重其「打算」與「短期目標」，不可為了方便玩家而讓他們突然變心。他們聽不見的話，內心也不會當成聽見。
+8. NPC 有朝向（0°＝圖上方，順時針）與正前方約 90° 視野扇，目前無牆體遮擋。近處且在扇內＝看清玩家；同區扇內＝餘光、細節不清；扇外或背後＝死角，當下看不見玩家（≤36 仍可能聽見聲音）。禁止讓背對玩家的人「剛好轉頭發現」，除非其打算寫了張望或轉身。
+9. 未識出的 NPC，玩家可見的稱呼、suggested 禁止用真名，只用外觀簡稱（alias）。識出後才用玩家所知之名。真名只存在角色卡給你用。若對方自報姓名或玩家確認身分，該筆 npcs 設 known:true，name 填玩家聽到的稱呼。
+10. 禁止重複【近況】或【已說過】裡的原句。每一回 speech 必須是新的一句；沒有新話就填空字串。`;
+
+/** @deprecated 舊單一 GM 提示；新回合已拆成裁定／敘事。 */
+export const GM_RULES = GM_WORLD;
 
 export function themePrompt(hint: string): string {
   return `為一款重視空間距離的文字冒險擬一個主題。使用台灣繁體中文。
@@ -275,11 +276,11 @@ export function formatThoughtsForGm(thoughts: NpcThought[]): string {
   return `【在場內心】（玩家看不見；必須照此演他們，勿改寫其目標）\n${lines.join("\n")}`;
 }
 
-export function turnPrompt(
+function sceneBrief(
   game: Game,
   scene: Scene,
   action: string,
-  thoughts: NpcThought[] = [],
+  thoughts: NpcThought[],
 ): string {
   const recent = game.log.slice(-10);
   const lore = game.lorebook
@@ -313,9 +314,7 @@ export function turnPrompt(
     .map((q) => `- 「${q}」`)
     .join("\n");
 
-  return `${GM_RULES}
-
-【世界】${game.theme}
+  return `【世界】${game.theme}
 【Lorebook】
 ${lore}
 
@@ -333,7 +332,7 @@ ${lookCard(game.player)}
 物品：${game.inventory.join("、") || "無"}
 旗標：${JSON.stringify(game.flags)}
 
-【NPC】（以下外觀／衣著／背景／短期目標即時生效，敘事必須用，不可忽略）
+【NPC】（外觀／衣著／背景／短期目標即時生效）
 ${npcs}
 
 ${formatThoughtsForGm(thoughts)}
@@ -347,25 +346,71 @@ ${history || "（開場）"}
 ${spoken || "（尚無）"}
 
 【本回玩家行動】
-${action}
+${action}`;
+}
+
+export function adjudicatePrompt(
+  game: Game,
+  scene: Scene,
+  action: string,
+  thoughts: NpcThought[],
+  cards: AttemptCard[],
+): string {
+  return `${GM_WORLD}
+
+你現在是裁定官，不是小說家。禁止寫故事、禁止 narrative 欄、禁止 markdown。
+程式已蓋好【物理裁定表】。physics=blocked 的行動必須 verdict=blocked，不可改判成功。
+你只判「運氣／社會／性格」：說服、說謊、忙不忙、要不要理人、偷東西有沒被發現。
+座標只反映意圖方向的小幅移動，不要傳送。不要把玩家寫到與 NPC 同一點。
+NPC id 必須是現有 id。blocked 的人不要對答玩家沒聽見的話。
+speech 是本拍新說的原話，沒開口填空字串。
+
+${sceneBrief(game, scene, action, thoughts)}
+
+【物理裁定表】（不可推翻）
+${formatAttemptCards(cards)}
 
 只輸出 JSON：
 {
-  "player": {"x": 0, "y": 0},
-  "npcs": [{"id": "原id", "x": 0, "y": 0, "facing": 0, "status": "", "speech": "本回新說的原話，沒開口或沒新話則空字串", "known": false, "name": "玩家所知之名，識出時填"}],
+  "player": {"x": 0, "y": 0, "verdict": "success|fail|mixed|blocked", "did": "這一拍實際做成什麼，一句", "speech": "玩家開口原話或空字串", "status": "可省略"},
+  "npcs": [{"id": "原id", "x": 0, "y": 0, "facing": 0, "status": "", "speech": "", "known": false, "name": "", "verdict": "success|fail|mixed|blocked", "did": "一句"}],
   "inventory": ["若未變可省略"],
   "flags": {"可選": "鍵值"},
   "suggested": ["下一步短句", "下一步短句", "下一步短句"],
   "crowds": [{"id":"原id或new_crowd","label":"","x":0,"y":0,"rx":12,"ry":8,"size":4,"desc":"","gone":false}],
   "spawnFromCrowd": [{"crowdId":"原人群id","npcs":[{"name":"","bio":"","personality":"","age":30,"gender":"女","race":"人","appearance":"","clothing":"","status":"","goal":""}]}],
-  "sceneChange": null,
-  "narrative": "本回敘事，250–500字。最後再寫。須把上面 speech 的原話用「」寫進去；沒開口就不要杜撰。近處角色要寫出角色卡上的五官、體態與衣著；若為女性且非老年，近處還要寫胸、腹、臀（以角色卡為準）。動作與對話必須符合其打算與短期目標。寫出誰聽得見。"
+  "sceneChange": null
 }
-先填座標、speech、狀態，最後才寫 narrative。narrative 必須引用已填的 speech，用「」括原話。speech 不可與【已說過】相同。
-crowds 若未變可省略或原樣帶回。spawnFromCrowd 可空陣列。從人群帶出的具名者須 ≥1 人，該團 gone 僅在所有人都已具名且本團累計具名 ≥2 時才允許。
-若玩家離開此地，sceneChange 改為：
+crowds 若未變可省略。spawnFromCrowd 可空陣列。從人群帶出的具名者須 ≥1 人，gone 僅在所有人都已具名且本團累計具名 ≥2 時才允許。
+若玩家本拍已在出口且意圖是離開，sceneChange 才可填：
 {"name":"","summary":"","atmosphere":"","mapAspect":"1:1","mapPrompt":"英文 top-down 地圖提示，無人物無文字","npcs":[{"name":"","bio":"","personality":"","age":30,"gender":"男","race":"人","appearance":"","clothing":"","status":"","goal":"","where":""}],"reason":"為何離開"}
-npc 的 id 必須是現有 id。可讓 NPC 小幅走動，並更新 facing（0＝上，順時針）。玩家座標應反映行動（走向某處就更新）。不要把玩家寫到與 NPC 同一點；接近某人時寫到對方身旁即可，實際退開由程式處理。背對玩家的人不要無故發現玩家。`;
+否則 sceneChange 必須是 null。`;
+}
+
+export function narratePrompt(
+  game: Game,
+  scene: Scene,
+  action: string,
+  thoughts: NpcThought[],
+  cards: AttemptCard[],
+  sheet: DramaResult,
+): string {
+  return `${GM_WORLD}
+
+你現在只負責敘事。台灣繁體中文，具體、感官。不要條列規則。
+禁止輸出 JSON。禁止改寫裁定結果、禁止改座標、禁止讓聽不見的人對答、禁止讓死角的人無故發現玩家。
+裁定表已是這一拍的事實。你只准播報這些事。
+對白必須用「」括原話，並寫出誰在說；speech 已定的句子必須出現在正文裡，不可改詞。沒有 speech 就不要杜撰開口。
+近處角色要寫出角色卡上的五官、體態與從頭到腳的衣著；若為女性且非老年，近處還要寫胸、腹、臀（以角色卡為準）。未成年禁止這些部位。
+動作與對話必須符合其打算與短期目標。寫出誰聽得見、誰沒聽見。
+250–500 字。
+
+${sceneBrief(game, scene, action, thoughts)}
+
+【已裁定的事實】（權威，不可違背）
+${formatResolutionSheet(sheet, cards)}
+
+直接寫這一拍的敘事正文。`;
 }
 
 export const DEFAULT_IMAGE_STYLE =

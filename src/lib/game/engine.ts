@@ -13,16 +13,22 @@ import {
   npcThinkPrompt,
   placePrompt,
   portraitPrompt,
+  adjudicatePrompt,
+  narratePrompt,
   resolveImageStyle,
   resolveMapStyle,
   resolvePortraitStyle,
   schematicLayoutPrompt,
   themePrompt,
   translateImageFieldsPrompt,
-  turnPrompt,
   worldPrompt,
   type ImageFieldLabel,
 } from "./prompts";
+import {
+  buildAttemptCards,
+  enforceResolution,
+  fallbackDrama,
+} from "./resolve";
 import { renderSchematic } from "./schematic";
 import { sampleGame } from "./sample";
 import { publicName, shortLook, trueNameOf } from "./identity";
@@ -30,13 +36,13 @@ import { defaultObjectLayer } from "./actions";
 import type {
   Character,
   Crowd,
+  DramaResult,
   Game,
   LoreEntry,
   MapAnnotation,
   MapObject,
   NpcThought,
   Scene,
-  TurnResult,
   Vec2,
   WorldDraft,
 } from "./types";
@@ -111,6 +117,28 @@ async function askJson<T>(
     console.warn("[圖誌] 輸出被 max_tokens 截斷");
   }
   return extractJson<T>(text);
+}
+
+async function askText(
+  config: ClientApiConfig,
+  user: string,
+  opts?: { maxTokens?: number; temperature?: number },
+): Promise<string> {
+  const { text, finishReason } = await raced(
+    chatText({
+      data: {
+        config,
+        messages: [{ role: "user", content: user }],
+        maxTokens: opts?.maxTokens ?? clampMaxTokens(config.maxTokens ?? DEFAULT_MAX_TOKENS),
+        temperature: opts?.temperature ?? 0.85,
+      },
+    }),
+  );
+  console.info("[圖誌] LLM 原文", text);
+  if (finishReason === "length") {
+    console.warn("[圖誌] 輸出被 max_tokens 截斷");
+  }
+  return text;
 }
 
 function hasCjk(s: string): boolean {
@@ -742,20 +770,31 @@ export async function takeTurn(
   }
 
   const thinkingScene: Scene = { ...scene, npcs: thinkingNpcs };
-  onProgress("推演這一回", "把距離與在場內心交給主持人");
-  const raw = await askJson<TurnResult>(
-    config,
-    turnPrompt(game, thinkingScene, action, thoughts),
-    undefined,
-    { temperature: 0.75 },
-  );
+  const cards = buildAttemptCards(thinkingScene, action, thoughts);
+  onProgress("裁定這一拍", "距離與視野先蓋章，再判成敗");
+  let drama: DramaResult;
+  try {
+    drama = await askJson<DramaResult>(
+      config,
+      adjudicatePrompt(game, thinkingScene, action, thoughts, cards),
+      undefined,
+      { temperature: 0.45, maxTokens: 2048 },
+    );
+    if (!drama?.player || !Array.isArray(drama.npcs)) {
+      drama = fallbackDrama(thinkingScene, cards);
+    }
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    drama = fallbackDrama(thinkingScene, cards);
+  }
+  const sheet = enforceResolution(drama, cards, thinkingScene);
 
   let playerPos = {
-    x: clampCoord(asNumber(raw.player?.x, scene.playerPos.x)),
-    y: clampCoord(asNumber(raw.player?.y, scene.playerPos.y)),
+    x: clampCoord(asNumber(sheet.player?.x, scene.playerPos.x)),
+    y: clampCoord(asNumber(sheet.player?.y, scene.playerPos.y)),
   };
 
-  const npcUpdates = Array.isArray(raw.npcs) ? raw.npcs : [];
+  const npcUpdates = Array.isArray(sheet.npcs) ? sheet.npcs : [];
   let npcs = thinkingNpcs.map((npc) => {
     const u = npcUpdates.find((n) => n.id === npc.id);
     if (!u) return npc;
@@ -791,9 +830,25 @@ export async function takeTurn(
     alert: nextAlert(n.alert, sightOn(n, playerPos, aspect)),
   }));
 
-  const crowdResult = applyCrowdTurn(scene.crowds ?? [], raw, npcs.length);
+  const crowdResult = applyCrowdTurn(scene.crowds ?? [], sheet, npcs.length);
   npcs = [...npcs, ...crowdResult.spawned];
   const crowds = crowdResult.crowds;
+
+  onProgress("書寫這一回", "只敘已裁定的事實");
+  let narrative = "";
+  try {
+    narrative = await askText(
+      config,
+      narratePrompt(game, thinkingScene, action, thoughts, cards, sheet),
+      { temperature: 0.85 },
+    );
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    narrative = composeFallbackNarrative(sheet, npcUpdates, npcs);
+  }
+  if (!narrative.trim() || /^\s*[{[]/.test(narrative)) {
+    narrative = composeFallbackNarrative(sheet, npcUpdates, npcs);
+  }
 
   const log: Game["log"] = [
     ...game.log,
@@ -802,7 +857,7 @@ export async function takeTurn(
       id: uid("log"),
       at: Date.now() + 1,
       kind: "narrative",
-      text: weaveSpeech(raw.narrative, npcUpdates, npcs),
+      text: weaveSpeech(narrative, npcUpdates, npcs, sheet.player.speech),
     },
   ];
 
@@ -810,11 +865,16 @@ export async function takeTurn(
     ...game,
     turnCount: game.turnCount + 1,
     updatedAt: Date.now(),
-    inventory: Array.isArray(raw.inventory) ? raw.inventory : game.inventory,
-    flags: raw.flags ? { ...game.flags, ...raw.flags } : game.flags,
-    player: { ...game.player, x: playerPos.x, y: playerPos.y },
-    suggested: Array.isArray(raw.suggested) && raw.suggested.length
-      ? raw.suggested.slice(0, 4)
+    inventory: Array.isArray(sheet.inventory) ? sheet.inventory : game.inventory,
+    flags: sheet.flags ? { ...game.flags, ...sheet.flags } : game.flags,
+    player: {
+      ...game.player,
+      x: playerPos.x,
+      y: playerPos.y,
+      status: asString(sheet.player.status, game.player.status),
+    },
+    suggested: Array.isArray(sheet.suggested) && sheet.suggested.length
+      ? sheet.suggested.slice(0, 4)
       : game.suggested,
     log: log.slice(-80),
     scenes: {
@@ -823,8 +883,8 @@ export async function takeTurn(
     },
   };
 
-  if (raw.sceneChange && raw.sceneChange.name) {
-    onProgress("進入新場景", raw.sceneChange.name);
+  if (sheet.sceneChange && sheet.sceneChange.name) {
+    onProgress("進入新場景", sheet.sceneChange.name);
     const draft: WorldDraft = {
       theme: game.theme,
       imageStyle: game.mapStyle || game.imageStyle || "",
@@ -842,13 +902,13 @@ export async function takeTurn(
         status: game.player.status,
       },
       scene: {
-        name: raw.sceneChange.name,
-        summary: raw.sceneChange.summary,
-        atmosphere: raw.sceneChange.atmosphere,
-        mapPrompt: raw.sceneChange.mapPrompt,
-        mapAspect: parseMapAspect(raw.sceneChange.mapAspect),
+        name: sheet.sceneChange.name,
+        summary: sheet.sceneChange.summary,
+        atmosphere: sheet.sceneChange.atmosphere,
+        mapPrompt: sheet.sceneChange.mapPrompt,
+        mapAspect: parseMapAspect(sheet.sceneChange.mapAspect),
       },
-      npcs: raw.sceneChange.npcs ?? [],
+      npcs: sheet.sceneChange.npcs ?? [],
     };
     const newScene = await buildScene(
       config,
@@ -862,7 +922,7 @@ export async function takeTurn(
         id: uid("log"),
         at: Date.now(),
         kind: "system",
-        text: `抵達：${newScene.name}。${raw.sceneChange.reason ?? ""}`.trim(),
+        text: `抵達：${newScene.name}。${sheet.sceneChange.reason ?? ""}`.trim(),
       },
       {
         id: uid("log"),
@@ -896,10 +956,15 @@ export function lastPlayerAction(game: Game): string | null {
 
 function weaveSpeech(
   narrative: string,
-  updates: TurnResult["npcs"],
+  updates: DramaResult["npcs"],
   npcs: Character[],
+  playerSpeech?: string,
 ): string {
   let text = softenProse(asString(narrative, "……"));
+  const playerLine = softenProse(asString(playerSpeech, "")).trim();
+  if (playerLine && !text.includes(playerLine)) {
+    text = `${text}\n\n你：「${playerLine}」`;
+  }
   for (const u of updates) {
     const line = softenProse(asString(u.speech, "")).trim();
     if (!line) continue;
@@ -911,13 +976,22 @@ function weaveSpeech(
   return text;
 }
 
+function composeFallbackNarrative(
+  sheet: DramaResult,
+  updates: DramaResult["npcs"],
+  npcs: Character[],
+): string {
+  const bits = [sheet.player.did || "……"];
+  return weaveSpeech(bits.join("\n"), updates, npcs, sheet.player.speech);
+}
+
 function clip(s: string, n: number): string {
   return s.replace(/\s+/g, " ").trim().slice(0, n);
 }
 
 function applyCrowdTurn(
   current: Crowd[],
-  raw: TurnResult,
+  raw: Pick<DramaResult, "crowds" | "spawnFromCrowd">,
   npcCount: number,
 ): { crowds: Crowd[]; spawned: Character[] } {
   const byId = new Map(current.map((c) => [c.id, { ...c }]));

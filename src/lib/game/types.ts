@@ -198,6 +198,57 @@ export type WorldDraft = {
   }>;
 };
 
+export type AttemptKind = "move" | "talk" | "touch" | "look" | "leave" | "other";
+export type PhysicsGate = "allowed" | "blocked" | "partial";
+export type AttemptDifficulty = "easy" | "normal" | "hard";
+export type ActorVerdict = "success" | "fail" | "mixed" | "blocked";
+
+export type AttemptCard = {
+  id: string;
+  role: "player" | "npc";
+  name: string;
+  intent: string;
+  kind: AttemptKind;
+  from: Vec2;
+  proximity: Proximity;
+  hearPlayer: boolean;
+  seePlayer: SightLevel;
+  physics: PhysicsGate;
+  physicsNote: string;
+  difficulty: AttemptDifficulty;
+};
+
+export type DramaPlayer = Vec2 & {
+  verdict?: ActorVerdict;
+  did?: string;
+  speech?: string;
+  status?: string;
+};
+
+export type DramaNpc = {
+  id: string;
+  x: number;
+  y: number;
+  facing?: number;
+  status: string;
+  speech?: string;
+  known?: boolean;
+  name?: string;
+  verdict?: ActorVerdict;
+  did?: string;
+};
+
+export type DramaResult = {
+  player: DramaPlayer;
+  npcs: DramaNpc[];
+  inventory?: string[];
+  flags?: Record<string, string>;
+  suggested?: string[];
+  crowds?: TurnResult["crowds"];
+  spawnFromCrowd?: TurnResult["spawnFromCrowd"];
+  sceneChange?: TurnResult["sceneChange"];
+};
+
 export type NpcThought = {
   id: string;
   name: string;
